@@ -1,0 +1,12 @@
+[package]
+name = "bubblegum_nifs"
+version = "0.1.0"
+authors = []
+edition = "2021"
+
+[lib]
+name = "bubblegum_nifs"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36.1"
