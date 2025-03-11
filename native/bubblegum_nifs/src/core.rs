@@ -8,7 +8,12 @@ use mpl_bubblegum::types::{Creator, MetadataArgs};
 use mpl_token_metadata::accounts::{MasterEdition, Metadata};
 use rustler::{Error, NifResult, NifStruct};
 use solana_program::pubkey::Pubkey;
-use spl_account_compression::state::CONCURRENT_MERKLE_TREE_HEADER_SIZE_V1;
+use solana_sdk::hash::Hash;
+use solana_sdk::instruction::Instruction;
+use solana_sdk::message::Message;
+use solana_sdk::signature::Keypair;
+use solana_sdk::signer::Signer;
+use solana_sdk::transaction::Transaction;
 use std::str::FromStr;
 
 #[derive(NifStruct)]
@@ -54,6 +59,13 @@ pub struct MetadataArgsStruct {
     pub creators: Vec<CreatorStruct>,
     pub collection: Option<CollectionStruct>,
     pub uses: Option<UsesStruct>,
+}
+
+#[derive(NifStruct)]
+#[module = "BubblegumNifs.Transaction"]
+pub struct TransactionStruct {
+    pub message: Vec<u8>,
+    pub signatures: Vec<Vec<u8>>,
 }
 
 fn to_rust_creator(creator: &CreatorStruct) -> Result<Creator, Error> {
@@ -119,11 +131,14 @@ fn to_rust_metadata_args(args: &MetadataArgsStruct) -> Result<MetadataArgs, Erro
     })
 }
 
-// fn keypair_from_info(info: &KeyPairInfo) -> Result<Keypair, Error> {
-//     let keypair = Keypair::from_bytes(&info.secret)
-//         .map_err(|_| Error::Term(Box::new("Invalid keypair bytes")))?;
-//     Ok(keypair)
-// }
+#[rustler::nif]
+pub fn generate_keypair() -> NifResult<KeyPairInfo> {
+    let keypair = Keypair::new();
+    Ok(KeyPairInfo {
+        pubkey: keypair.pubkey().to_string(),
+        secret: keypair.to_bytes().to_vec(),
+    })
+}
 
 #[rustler::nif]
 pub fn create_tree_config_ix(
@@ -305,7 +320,7 @@ pub fn mint_to_collection_v1_ix(
 }
 
 #[rustler::nif]
-fn transfer_ix(
+pub fn transfer_ix(
     tree_authority: String,
     leaf_owner: String,
     leaf_delegate: String,
@@ -359,7 +374,50 @@ fn transfer_ix(
 }
 
 #[rustler::nif]
-fn get_tree_authority_pda_address(merkle_tree: String) -> NifResult<String> {
+pub fn create_transaction(
+    recent_blockhash: String,
+    instructions: Vec<Vec<u8>>,
+    signers: Vec<KeyPairInfo>,
+) -> NifResult<TransactionStruct> {
+    let recent_blockhash = Hash::from_str(&recent_blockhash)
+        .map_err(|_| Error::Term(Box::new("Invalid Blockhash")))?;
+
+    let mut ix_vec = Vec::new();
+    for ix_data in instructions {
+        let ix: Instruction = bincode::deserialize(&ix_data)
+            .map_err(|_| Error::Term(Box::new("Invalid instruction data")))?;
+        ix_vec.push(ix);
+    }
+
+    let mut keypairs = Vec::new();
+    for signer in signers {
+        let keypair = Keypair::from_bytes(&signer.secret)
+            .map_err(|_| Error::Term(Box::new("Invalid keypair")))?;
+        keypairs.push(keypair);
+    }
+
+    let signer_refs: Vec<&dyn Signer> = keypairs.iter().map(|kp| kp as &dyn Signer).collect();
+
+    let message =
+        Message::new_with_blockhash(&ix_vec, Some(&keypairs[0].pubkey()), &recent_blockhash);
+    let mut tx = Transaction::new_unsigned(message);
+    tx.sign(&signer_refs, recent_blockhash);
+
+    let serialized_tx = bincode::serialize(&tx)
+        .map_err(|_| Error::Term(Box::new("Failed to serialize transaction message")))?;
+
+    Ok(TransactionStruct {
+        message: serialized_tx,
+        signatures: tx
+            .signatures
+            .iter()
+            .map(|sig| sig.as_ref().to_vec())
+            .collect(),
+    })
+}
+
+#[rustler::nif]
+pub fn get_tree_authority_pda_address(merkle_tree: String) -> NifResult<String> {
     let merkle_tree = Pubkey::from_str(&merkle_tree)
         .map_err(|_| Error::Term(Box::new("Invalid pubkey format for merkle tree")))?;
 
@@ -367,31 +425,4 @@ fn get_tree_authority_pda_address(merkle_tree: String) -> NifResult<String> {
     let (tree_authority, _) = Pubkey::find_program_address(seeds, &mpl_bubblegum::ID);
 
     Ok(tree_authority.to_string())
-}
-
-#[rustler::nif]
-fn calculate_merkle_tree_space(
-    max_depth: u32,
-    max_buffer_size: u32,
-    canopy_depth: u32,
-) -> NifResult<u64> {
-    let max_depth = max_depth.min(30) as usize; // Safe Limit
-    let buffer_size = max_buffer_size.min(2048) as usize;
-    let canopy_depth = canopy_depth.min(max_depth as u32) as usize;
-
-    // Base space for merkle tree
-    let base_size = CONCURRENT_MERKLE_TREE_HEADER_SIZE_V1 + (buffer_size) * (max_depth * 32 + 8);
-
-    // Each level in the canopy stores 2^level nodes, each node is 32 bytes
-    let canopy_size = if canopy_depth > 0 {
-        let mut size = 0;
-        for i in 0..canopy_depth {
-            size += (1 << i) * 32;
-        }
-        size
-    } else {
-        0
-    };
-
-    Ok((base_size + canopy_size) as u64)
 }

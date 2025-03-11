@@ -7,7 +7,9 @@ defmodule BubblegumNifs.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      compilers: Mix.compilers(),
+      rustler_crates: rustler_crates(),
     ]
   end
 
@@ -18,10 +20,21 @@ defmodule BubblegumNifs.MixProject do
     ]
   end
 
+  defp rustler_crates do
+    [
+      transaction: [
+        path: "native/bubblegum_nifs",
+        mode: if(Mix.env() == :prod, do: :release, else: :debug),
+      ]
+    ]
+  end
+
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:rustler, "~> 0.36.0", runtime: false},
+      {:tesla, "~> 1.4.1"},
+      {:jason, "~> 1.4.1"}
     ]
   end
 end

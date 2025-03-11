@@ -24,3 +24,5 @@ bubblegum_nifs-*.tar
 
 # Rust binary artifacts
 /target/
+
+/priv/
