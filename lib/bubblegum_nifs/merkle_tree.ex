@@ -1,58 +1,48 @@
 defmodule BubblegumNifs.MerkleTree do
-  import Bitwise
+  @moduledoc """
+  Functions related to Merkle tree operations
+  """
 
   @doc """
-  Calculates the size of a Merkle Tree based on max_depth, max_buffer_size, and canopy_depth.
+  Gets the calculated size of a merkle tree based on depth and buffer.
 
-  Args:
-    max_depth (integer): Maximum depth of the tree
-    max_buffer_size (integer): Maximum buffer size
-    canopy_depth (integer): Depth of the canopy (defaults to 0)
+  ## Parameters
+    * `depth` - The depth of the merkle tree
+    * `buffer` - The buffer size of the merkle tree
 
-  Returns:
-    integer: Total size of the Merkle Tree in bytes
+  ## Returns
+    * `{:ok, size}` - The calculated size in bytes as a u64
+    * `{:error, reason}` - Error if the request fails
   """
-  def get_merkle_tree_size(max_depth, max_buffer_size, canopy_depth \\ 0) do
-    # Anchor discriminator
-    discriminator_size = 8
-    # ConcurrentMerkleTreeHeader
-    header_size = 54
-    # ChangeLog entries
-    changelog_size = max_buffer_size * 72
-    # Nodes (2^max_depth * 32 bytes)
-    tree_size = (1 <<< max_depth) * 32
-    canopy_size = calculate_canopy_size(canopy_depth)
-
-    discriminator_size + header_size + changelog_size + tree_size + canopy_size
+  @spec get_merkle_tree_size(non_neg_integer(), non_neg_integer()) :: non_neg_integer()
+  def get_merkle_tree_size(depth, buffer) do
+    case fetch_merkle_tree_size(depth, buffer) do
+      {:ok, size} -> size
+      {:error, reason} ->
+        # Log error and return a default size or raise an exception
+        require Logger
+        Logger.error("Failed to get merkle tree size: #{inspect(reason)}")
+        # Fallback to a reasonable default size or raise an exception
+        raise "Failed to calculate merkle tree size: #{inspect(reason)}"
+    end
   end
 
-  # Private helper functions
+  defp fetch_merkle_tree_size(depth, buffer) do
+    url = "https://merkle-tree-server.onrender.com/merkle-tree-size?depth=#{depth}&buffer=#{buffer}"
 
-  # defp get_tree_size(max_depth, max_buffer_size) do
-  #   # In the TS version, this comes from getConcurrentMerkleTreeSerializer().fixedSize
-  #   # We'll implement a basic calculation - adjust this based on your actual tree structure
-  #   # Base size per node (assuming 32 bytes like public keys)
-  #   base_size = 32
-  #   # Assuming 8 bytes per buffer entry
-  #   buffer_size = 8 * max_buffer_size
-  #   depth_factor = :math.pow(2, max_depth) |> round()
+    case HTTPoison.get(url) do
+      {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
+        case Jason.decode(body) do
+          {:ok, %{"size" => size}} -> {:ok, size}
+          {:error, decode_error} -> {:error, "Failed to decode API response: #{inspect(decode_error)}"}
+          _ -> {:error, "Unexpected API response format"}
+        end
 
-  #   base_size * depth_factor + buffer_size
-  # end
+      {:ok, %HTTPoison.Response{status_code: status_code, body: body}} ->
+        {:error, "API request failed with status code: #{status_code}, body: #{body}"}
 
-  defp calculate_canopy_size(canopy_depth) do
-      if canopy_depth == 0 do
-        0
-      else
-        node_size = 32
-        canopy_nodes = max((1 <<< (canopy_depth + 1)) - 2, 0)
-        node_size * canopy_nodes
-      end
+      {:error, %HTTPoison.Error{reason: reason}} ->
+        {:error, "HTTP request failed: #{inspect(reason)}"}
     end
-
-  # defp calculate_canopy_nodes(canopy_depth) do
-  #   # Bitwise left shift (1 << (canopy_depth + 1)) - 2
-  #   shift_amount = canopy_depth + 1
-  #   (1 <<< shift_amount) - 2
-  # end
+  end
 end

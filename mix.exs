@@ -39,7 +39,9 @@ defmodule BubblegumNifs.MixProject do
       {:tesla, "~> 1.4.1"},
       {:jason, "~> 1.4.1"},
       {:exbase58, "~> 1.0.2"},
-      {:ex_doc, "~> 0.22.0"}
+      {:ex_doc, "~> 0.22.0"},
+      {:httpoison, "~> 2.2.2"},
+      {:mox, "~>  1.1", only: :test}
     ]
   end
 
