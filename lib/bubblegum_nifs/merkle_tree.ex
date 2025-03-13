@@ -28,7 +28,7 @@ defmodule BubblegumNifs.MerkleTree do
   end
 
   defp fetch_merkle_tree_size(depth, buffer) do
-    url = "https://merkle-tree-server.onrender.com/merkle-tree-size?depth=#{depth}&buffer=#{buffer}"
+    url = "https://merkler-tree-serv-guzao.ondigitalocean.app/merkle-tree-size?depth=#{depth}&buffer=#{buffer}"
 
     case HTTPoison.get(url) do
       {:ok, %HTTPoison.Response{status_code: 200, body: body}} ->
