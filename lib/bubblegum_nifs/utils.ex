@@ -1,4 +1,4 @@
-defmodule BubblegumNifs.KeypairInfo do
+defmodule BubblegumNifs.KeyPairInfo do
   @moduledoc """
   Represents a Solana keypair with its public key and secret bytes
   """

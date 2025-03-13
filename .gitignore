@@ -26,3 +26,5 @@ bubblegum_nifs-*.tar
 /target/
 
 /priv/
+
+wallet.json

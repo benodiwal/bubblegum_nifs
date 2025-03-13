@@ -34,7 +34,9 @@ defmodule BubblegumNifs.MixProject do
     [
       {:rustler, "~> 0.36.0", runtime: false},
       {:tesla, "~> 1.4.1"},
-      {:jason, "~> 1.4.1"}
+      {:jason, "~> 1.4.1"},
+      {:exbase58, "~> 1.0.2"},
+      {:ex_doc, "~> 0.22.0"}
     ]
   end
 end
