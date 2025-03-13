@@ -9,7 +9,10 @@ defmodule BubblegumNifs.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       compilers: Mix.compilers(),
+      description: "Elixir interface for Metaplex Bubblegum compressed NFTs on Solana",
       rustler_crates: rustler_crates(),
+      package: package(),
+      docs: docs()
     ]
   end
 
@@ -22,9 +25,9 @@ defmodule BubblegumNifs.MixProject do
 
   defp rustler_crates do
     [
-      transaction: [
+      bubblegum_nifs: [
         path: "native/bubblegum_nifs",
-        mode: if(Mix.env() == :prod, do: :release, else: :debug),
+        mode: if(Mix.env() == :prod, do: :release, else: :debug)
       ]
     ]
   end
@@ -37,6 +40,24 @@ defmodule BubblegumNifs.MixProject do
       {:jason, "~> 1.4.1"},
       {:exbase58, "~> 1.0.2"},
       {:ex_doc, "~> 0.22.0"}
+    ]
+  end
+
+  defp package do
+    [
+      maintainers: ["Sachin Beniwal"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/benodiwal/bubblegum_nifs"},
+      files:
+        ~w(lib native/bubblegum_nifs/src native/bubblegum_nifs/Cargo.toml .formatter.exs mix.exs README.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"],
+      source_url: "https://github.com/benodiwal/bubblegum_nifs"
     ]
   end
 end

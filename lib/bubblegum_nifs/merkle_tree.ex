@@ -1,5 +1,5 @@
 defmodule BubblegumNifs.MerkleTree do
-  use Bitwise
+  import Bitwise
 
   @doc """
   Calculates the size of a Merkle Tree based on max_depth, max_buffer_size, and canopy_depth.
